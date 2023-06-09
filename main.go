@@ -3,7 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"io/ioutil"
+	"log"
 	"strconv"
 
 	"github.com/gocolly/colly"
@@ -20,10 +21,11 @@ func main() {
 	collector := colly.NewCollector(
 		colly.AllowedDomains("factretriever.com", "www.factretriever.com"),
 	)
-	collector.OnHTML(".factsList ls", func(element *colly.HTMLElement) {
+
+	collector.OnHTML(".factsList li", func(element *colly.HTMLElement) {
 		factId, err := strconv.Atoi(element.Attr("id"))
 		if err != nil {
-			panic("Could not get id")
+			log.Println("Could not get id")
 		}
 
 		factDesc := element.Text
@@ -34,15 +36,23 @@ func main() {
 		}
 
 		allFacts = append(allFacts, fact)
-
 	})
+
 	collector.OnRequest(func(request *colly.Request) {
 		fmt.Println("Visiting", request.URL.String())
 	})
+
 	collector.Visit("https://www.factretriever.com/rhino-facts")
 
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", " ")
-	enc.Encode(allFacts)
+	writeJSON(allFacts)
+}
 
+func writeJSON(data []Fact) {
+	file, err := json.MarshalIndent(data, "", " ")
+	if err != nil {
+		log.Println("Unable to create json file")
+		return
+	}
+
+	_ = ioutil.WriteFile("rhinofacts.json", file, 0644)
 }
